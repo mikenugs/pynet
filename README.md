@@ -1,3 +1,6 @@
 # pynet
 Kirk Byers PyNet course
-### I have now gone ahead and modified the Readme using my local repo on the server
+<<<<<<< HEAD
+=======
+## This is the change I am making on the GitHub site directly
+>>>>>>> 1238db2c2da79ff153599e34e4d8a25592292608
