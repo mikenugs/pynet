@@ -1,0 +1,94 @@
+git is a version control system to keep track of files and how they change
+over time. for network engineers you can treat your infrastructure as code
+and use git to track changes of your confiugrations and code. git keeps track
+of all files and directories across time. you make snapshots of files and directories
+over time and it is stored in your repsository. as you make snapshots you 
+are keeping track of all files and directories at that point of time and is stored in the git repository.
+github is a saas application for hosting online git repositories.
+
+#Creates a new local repository with the specified name. Just using . will create default master branch
+git init [project-name] 
+git init .
+#Downloads a project and its entire version history
+git clone [url]
+#show the remote project that we have cloned
+git remote -v
+#shows the branches on the remote server
+git branch -r
+
+#sets the name and e-mail you want associated with commits
+git config --global user.name "[name]"
+git config --global user.email "[email address]"
+
+
+#status of your git repository and shows you the branch you are on. Lists all new or modified files to be committed
+git status
+
+#Snapshots the file in preparation for versioning. Puts file in Staging
+git add [file]
+#removes files
+git rm [file]
+#if you have not added the file yet you can just remove it
+rm [file]
+#Shows file differences not yet staged
+git diff
+#Shows file differences between staging and the last file version
+git diff --staged
+#Unstages the file, but preserves its contents
+git reset [file]
+git reset HEAD [file]
+#If you have modified a file but you want to discard the change
+git checkout -- ./[filename]
+#Temporarily stores all modified tracked files. Shelve and restore incomplete changes
+git stash
+#Restores the most recently stashed files
+git stash pop
+#Lists all stashed changesets
+git stash list
+#Discards the most recently stashed changeset
+git stash drop
+
+#Records file snapshots permanently in version history
+git commit -m"[descriptive message]"
+#Uploads all local branch commits to GitHub. You get remote name from git remote -v and the branch name is the branch on the remote server name
+git push [remote] [branch]
+#Downloads bookmark history and incorporates changes
+git pull
+git pull [remote] [branch]
+
+#Lists version history for the current branch
+git log
+#Lists version history for the file, including renames
+git log --follow [file]
+#Shows content differences between two branches
+git diff [first-branch]...[second-branch]
+#Outputs metadata and content changes of the specified commit
+git show [commit]
+
+#Lists all local branches in the current repository
+git branch
+
+#Creates a new branch
+git branch [branch-name]
+#Switches to the specified branch and updates working directory
+git checkout [branch-name]
+#Creates a branch based on another branch
+git checkout -b [newbranchname] [branchtocopyfrom]
+#Create a local branch based on a remote branch. Use git branch -r for remote branch name. This will create a pull request with github
+git checkout -b [branchname] [origin/branchname]
+#Combines the specified branch’s history into the current branch
+git merge [branch-name]
+#Deletes the specified branch
+git branch -d [branch-name]
+
+#If you want to synch up commits between branches
+git checkout [branch]
+git rebase [branchnametosynchto]
+
+#To merge between branches
+git checkout [branch]
+git merge [branchtomergeintofirstbranch]
+
+
+
+
