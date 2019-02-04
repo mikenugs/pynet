@@ -1,0 +1,249 @@
+netmiko is based on paramiko which is a server side SSH python library. Netmiko has
+broad vendor support. 
+
+!To install Netmiko
+
+pip install netmiko
+
+# SSH connection to device
+
+from netmiko import Netmiko | or | from netmiko import ConnectHandler
+
+net_con = Netmiko(host='hostname', username='user', password='password', device_type='cisco_ios')
+
+print(net_conn.find_prompt()) | will show device prompt
+
+# You can also pass in your key/value pairs as a dictionary
+
+from netmiko import Netmiko
+from getpass import getpass
+
+my_device = {
+    'host': 'hostname',
+    'username': 'username',
+    'password': getpass(),
+    'device_type': 'cisco_ios',
+}
+
+net_conn = Netmiko(**my_device)
+print(net_conn.find_prompt())
+
+# To find out the valid device types you can put an invalid type in your script
+
+    'device_type': 'BLAH',
+
+# To go into enable mode
+
+my_device = {  
+    'host': 'hostname',
+    'username': 'username',
+    'password': getpass(),
+    'secret': 'password', <-- add the secret and password for your device
+    'device_type': 'cisco_ios',
+}
+
+net_conn.enable() <-- add this line to go into enable mode
+
+# To send a command to a router
+
+from netmiko import Netmiko
+from getpass import getpass
+
+my_device = {  
+    'host': 'hostname',
+    'username': 'username',
+    'password': getpass(),
+    'device_type': 'cisco_ios',
+}
+
+net_conn = Netmiko(**my_device)
+output = net_conn.send_command("show arp") <-- to send the command
+print(output) <-- to print the results
+
+# To check the arguments you can send
+
+help(net_conn)
+
+# to change the pattern Netmiko is looking for after entering the command at the prompt
+
+output = net_conn.send_command("show arp", expect_string=r'#') <-- changes the search pattern to # for enable mode access
+
+# To add multiple devices
+
+cisco1 = {
+    'host': 'hostname',
+    'username': 'username',
+    'password': getpass(),
+    'device_type': 'cisco_ios',
+}
+
+cisco2 = {
+    'host': 'hostname',
+    'username': 'username',
+    'password': getpass(),
+    'device_type': 'cisco_ios',
+}
+
+for device in ('cisco1', 'cisco2'):
+ 
+#Multiline prompting. When you are working with a router that gives you a response when entering a command
+
+filename = 'small_file.txt'
+cmd = 'delete flash:{}'.format(filename)
+output = net_connect.send_command_timing(cmd) <-- timing tries to figure out how long it should wait before entering the command
+if 'confirm' in output:
+    output += net_connect.send_command_timing("\n")
+
+!or you can also try
+
+command = 'delete flash:/cisco_file.txt'
+output = net_connect.send_command(command, expect_string=r'confirm', strip_prompt=False, strip_command=False) <-- You can optionally set the strip prompt and command to False if you want to see the output of the whole command
+output += net_connect.send_command('y', expect_string=r'#') <-- Netmiko by default does a second enter which we dont want at this point so we set a second expect string to the #
+
+
+#You can also try and add a delay in case the command takes more time to execute. 
+
+output = net_connect.send_command_timing("copy run start", delay_factor=2) 
+output = net_connect.send_command("copy run start", delay_factor=2)
+
+!delay factor can also be set globally
+
+cisco2 = {
+    'host': 'hostname',
+    'username': 'username',
+    'password': getpass(),
+    'device_type': 'cisco_ios',
+    'global_delay_factor': 4,
+}
+
+
+!or
+
+output = net_connect.send_command_timing(command, strip_prompt=False, strip_command=False)
+output += net_connect.send_command_timing('y', strip_prompt=False, strip_command=False)
+
+#Using Netmiko
+
+!You must install ntc-templates into your home directory with git clone for it to work, or you need to set the environment using 'export NET_TEXTFSM=~/directory/ntc/templates/' 
+
+output = net_connect.send_command("copy run start", use_textfsm=True)
+
+!if you want to take a look at the structured data when deciding how to print it run Python in interactive mode
+
+python -i script.py
+from pprint import pprint
+pprint(output)
+type(output)
+len(output)
+output[0]
+output[4]['ipaddr']
+
+
+!To send configuration commands
+
+cfg_commands = ['logging buffered 4000', 'no logging console'] <- you can also send a single config with a string
+output = net_connect.send_config_set(cfg_commands)
+print(output)
+
+!For juniper you need to commit the changes as well
+output = net_connect.commit()
+
+!To exit configuration mode
+output = net_connect.exit_config_mode()
+
+!You can also send configuration commands from a file
+output = net_connect.send_config_from_file("file_name.txt")
+!or
+output = net_connect.send_config_from_file(config_file="file_name.txt")
+
+!To enable logging add these three commands
+
+import logging
+logging.basicConfig(filename='test.log', level=logging.DEBUG)
+logger = logging.getLogger("netmiko")
+
+!You can also go into python interactive mode and issue this command 
+
+net_conn.write_channel("show ip arp\n")
+output = net_conn.read_channel() <-- to read the data back
+print(output)
+
+!You can also enable session logs
+
+cisco1 = {
+    'host': 'hostname',
+    'username': 'username',
+    'password': getpass(),
+    'device_type': 'cisco_ios',
+    'session_log': 'log_file.txt', <-- command to add the session log
+}
+
+#To save configs
+
+save_out = net_connect.save_config()
+print(save_out)
+
+#Using SSH keys
+
+cisco2 = {
+    'host': 'hostname',
+    'username': 'username',
+    'device_type': 'cisco_ios',
+    'use_keys': True,
+    'key_file': '/home/kbyers/.ssh/test_rsa'
+}
+
+#Speed up the response time of Netmiko
+
+cisco2 = {
+    'host': 'hostname',
+    'username': 'username',
+    'device_type': 'cisco_ios',
+    'use_keys': True,
+    'key_file': '/home/kbyers/.ssh/test_rsa'
+    'fast_cli': True <-- changes the delay to less than 1
+}
+
+
+#Using securecopy to copy files over. Make sure your vty timeout does not timeout before completing the copy for large files. 
+
+from netmiko import ConnectHandler, file_transfer 
+
+source_file = "testx.txt"
+dest_file = "testx.txt"
+direction = "put"
+file_system = "bootflash:"
+
+ssh_conn = ConnectHandler(**nxos1)
+transfer_dict = file_transfer(
+    ssh_conn,
+    source_file=source_file,
+    dest_file=dest_file,
+    file_system=file_system,
+    direction=direction,
+    overwrite_file=True
+)
+print(transfer_dict)
+
+nano ~/netmiko/netmiko//ssh_dispatcher.py <-- Look for FILE_TRANSFER to see what is supported
+
+#To see how long it takes to run the program you can do
+
+date; python script.py; date
+
+#To see what Netmiko options are available
+
+!run your script in interpeated mode
+
+ipython -i test_script.py
+
+!run a dir on your Netmiko object
+
+dir(net_connect)
+help(net_connect.fast_cli)
+
+!to check commands one by one in interprested mode
+
+net_connect.write_channel('show ip int br\n')
+output = net_connect.read_channel()
+print(output)
