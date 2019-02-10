@@ -1,0 +1,82 @@
+!When dealing with data sets start by 
+
+type(nameofdatastruce)
+
+!if it is a list
+
+len(nameofdatastruce)
+
+!it will tell yuou how many elements in the list from there you can see each element
+
+nameofdatastruce[0] <-- where the number is the number you want to see
+
+!To interate through the list and grab dictionary values within each list you can 
+
+for line in nameofdatastruce:
+    print(nameofdatastruce['key_value']
+
+!If the length returns only one then pop the outer list
+
+new_nameofdatastruce = nameofdatastruce[0]
+
+print(new_nameofdatastruce)
+
+!You should know see a dictionary so check to see what key values you have
+
+print(new_nameofdatastruce.keys())
+
+!You can now view more details about what values are bound by these keys
+
+print(new_nameofdatastruce['key_name']
+
+!peel this data back layer by layer
+
+new_nameofdatastruce = new_nameofdatastruce['key_name']
+
+print(new_nameofdatastruce.keys())
+
+!Keep peeling through until you get to the interesting data you want
+
+for k, v in new_nameofdatastruce.items():
+    print(k)
+    print(v['sub_key'])
+
+!When your data structure is a wrapped in a dictionary in the outermost layer first check the keys
+
+new_nameofdatastruce.keys()
+
+!You can then check the keys
+
+new_nameofdatastruce['key_name']
+
+!If you want to change the way the data is structured in other words change what may be a list to dictionary or vice versa.
+!Assuming the outer layer is a dictionary take a look at at least one of the key value pairs to see how the data is structred
+
+for k, v in new_nameofdatastruce.items():
+    print(k)
+    print(v)
+    break
+
+!If you run into a list you can dig further into the list by printing the indexes of the list
+
+for k, v in new_nameofdatastruce.items():
+    print(k)
+    pprint(v[0])
+    break
+
+!Now you can build your data in the way that you wish
+
+new_list = []
+for intf_name, lldp_data in lldp.items():
+    lldp_data = lldp_data[0] 
+    new_entry = {
+        "intf_name": intf_name,
+        "remote_port": lldp_data['remote_port'],
+    }
+    new_list.append(new_entry)
+    break <-- if you dont want it to iterate through the entire data structure
+print(new_list)
+
+!Ideally you want to have a list wrapped around dictionarys
+
+
