@@ -1,0 +1,88 @@
+!Cisco ConfParse is a library that leverages the hierarchy of Cisco configuration but looking at the indentation after confiugration.
+!Using RegEx can become dificult when you need to find a pattern after another pattern. Like the router id under BGP AS 42.
+
+from ciscoconfparse import CiscoConfParse
+cisco_obj = CiscoConfParse('cisco1.txt')
+
+!If you want to pass in a strieght config via NetMiko for example instead of a file you need to convert it to a list instead of a string
+
+CiscoConfParse(my_config.splitlines())
+
+dir(cisco_obj) <-- this will show you the different object types look for the find objects for example
+help(cisco_obj.find_objects)
+
+!When you look at the details it looks for linespec which is a regex type pattern
+
+intf = cisco_obj.find_objects(r"^interface") <-- always start with the raw r when dealing with Regex. This will look for anything that starts with interface.
+
+!The above will return a list so you cna do the below to see the contents
+
+intf[0] <-- will tell you which interface
+intf[0].text <-- will show you that full interface name
+
+!The above is not very helpful in itself so to get more information you can do the below
+
+dir(intf[0])
+
+!By using the above command we can see lots of options such as children
+
+intf[4].children <-- this returns interface configuration
+
+!To pretty this out you can iterrate through it via
+
+for child in intf[4].children:
+    print(child.text)
+
+!If you want to look for any interface that had an IP address configured
+
+dir(cisco_obj) <-- look at the options for ciscoconfparse by doing a dir on the object
+help(cisco.obj.find_objects_w_child) <-- you can read more about the different objects with a help. In this options there is a parent spec and a child spec to search on.
+
+cisco.obj.find_objects_w_child(parentspec=r"^interface", childspec=r"ip address")
+
+!The issue with the above command is that it will also match on interfaces that are configured with "no ip address" which we do not want.
+
+childspec=r"^\s+ip address" <-- here we change the regext to only match if there is whitespace before the IP address so all the no ip address will be filtered out.
+
+!here we correct the regex to only match IP addresses that do not have no
+
+match = cisco.obj.find_objects_w_child(parentspec=r"^interface", childspec=r"^\s+ip address")
+
+match[0].text <-- will show the interface name "first line"
+match[0].children <-- will show the child config
+
+!In this example we want to find "line con 0"
+
+parent = cisco_obj.find_objects(r"^line con 0")
+
+!If you type in parent in interactive mode you will see the object is returned as a list to strip that list
+
+parent = parent[0]
+
+parent <-- now shows the brackets sourounding the object name are gone
+
+parent.is_parent <-- if it returns true that will tell us if it has children
+
+parent.children <-- will show us the children
+
+children = parent.children
+
+children[1] <-- to look at the first element
+a_child = children[1] <-- to assign the first element to something
+a_child.is_child <-- if true it is a child
+a_child.parent <-- will show us who the parent is
+a_child.siblings <-- will show us the other child configs that are associated
+
+cisco_obj.find_objects_wo_child(parentspec=r"^interface, childspec=r"no ip address") <-- this will find any interface config with no ip address and since it says wo ochild it will ignore those
+
+match = cisco_obj.find_objects(r"^crypto map CRYPTO") <-- this will return each crypto map Parent for CRYPTO
+
+match = match[0] <-- this will take the first element and save it as match
+
+match.children <-- shows the children config for the first cryptomap
+
+!If you want to find the set pfs within this CRYPTO MAP
+
+match.re_search_children(r'set pfs ') <-- will find that particular line within the child config of the crypto map
+
+
