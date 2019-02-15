@@ -1,0 +1,54 @@
+!TextFSM is a Python package created by Google. When working with network equipment some do not have good API's so we need to use SSH to parse CLI.
+You can use Python and RegeX but the issue with this is RegEx can get very complicated and hard to maintain.
+TextFSM can be used instead of RegEx. With regex you use text characters to represent patterns that you see in strings.
+
+!To see where textfsm is installed 
+textfsm.__file__
+
+!With TextFSM you have to create a template file
+
+a.) entries and output we are extrancing these are the value defintions
+
+Value VAR_NAME (regex_pattern)
+Value VAR_NAME (regex_pattern)
+Value VAR_NAME (regex_pattern)
+
+b.) State machine part of the template here we define a new state LLDP
+
+Start
+    ^Device.*ID -> LLDP
+
+LLDP
+    ^${VAR_NAME}.* -> Record
+
+# Implicit EOF and Record
+# EOF
+
+! To install
+
+pip install textfsm
+pip install colorama <-- to get color feedback
+
+-------- template example file name is show_ip_int_brief.template
+
+Value INTERFACE (\S+) <-- this will match all non whitespace characters
+Value IP_ADDR (\S+)
+Value LINE_STATUS (up|down)
+Value LINE_PROTOCOL (up|down)
+
+
+Start
+ ^Interface.*Protocol\s*$$ -> ShowIPIntBrief <-- This is done to remove the first line of output
+
+ShowIPIntBrief
+  ^${INTERFACE}\s+${IP_ADDR}.*{LINE_STATUS\s+${LINE_PROTOCOL}\s*SS -> Record
+
+!To execute 
+
+python textfsm.py show_ip_int_brief.template show_ip_int_brief.txt
+
+
+
+
+
+

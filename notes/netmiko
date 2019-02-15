@@ -122,11 +122,16 @@ cisco2 = {
 output = net_connect.send_command_timing(command, strip_prompt=False, strip_command=False)
 output += net_connect.send_command_timing('y', strip_prompt=False, strip_command=False)
 
-#Using Netmiko
+#Using TextFSM
 
 !You must install ntc-templates into your home directory with git clone for it to work, or you need to set the environment using 'export NET_TEXTFSM=~/directory/ntc/templates/' 
 
 output = net_connect.send_command("copy run start", use_textfsm=True)
+
+!To view the templates that are available
+
+cat ~/ntc-templates/templates/index | grep cisco_ios
+
 
 !if you want to take a look at the structured data when deciding how to print it run Python in interactive mode
 

@@ -1,0 +1,61 @@
+!to import libraries
+
+1.) You can 
+
+import re <-- if you import like this then you have to reference the name that you want from re like we do below
+re.search <-- if you specify this without the () it will show you the funciton
+help(re.search)
+
+2. You can also
+
+from re import search
+
+search <-- when you import like above you can just specify search
+
+3.) from re import search as my_search
+
+my_search <-- this is the third way you can import a library
+
+!You can go to pypi.org and do a search to find a plethora of libraries that are available
+
+!If you do a pip list it will show you all the pip packages that you have installed or a pip freeze.
+You can do a ' pip freeze > requirements.txt' to make a requirements file of python packages
+
+Then you could do a 'pip install -r ./requirements.txt' and it will install all of those packages
+
+!To see what paths python will search for you can import the sysmodule and perform the following commands
+
+import sys
+pprint(sys.path)
+
+So when you import a library it will look in one of those direectories. If you are cursiouse as to where the library was found
+you can do a 
+re.__file__ <-- this will tell you where it found the re module
+
+!When you import a module that you create you do not have to call upon functions you can also just import variables if you like
+
+from my_file import USERNAME, PASSWORD
+
+USERNAME
+'admin'
+
+!To modify your Python sys.path you can first check what is currently in the path
+
+env | grep PYTHON
+export PYTHONPATH=/firstpath:/secondpath:/thirdpath
+
+And place that in your bashrc file
+
+!You should seperate your importable code via executable code. This makes it easier to know which code can be reused which is at the very top.
+
+IMPORTABLE CODE, FUNCTIONS, and VARIABLES HERE!!!
+
+if __name__ == "__main__":
+
+EXECUTABLE CODE HERE!!!!
+
+!One thing you can do is define your dictionary of devices in one file and then import the device information into your program
+
+from my_devices import rtr4, rtr4 <-- where these are the dictionary names
+
+
