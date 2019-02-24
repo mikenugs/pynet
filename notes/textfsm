@@ -47,8 +47,56 @@ ShowIPIntBrief
 
 python textfsm.py show_ip_int_brief.template show_ip_int_brief.txt
 
+ ----------------------------------------------------------------
+
+!In this example we will do a show version
+
+Value CONFIG_REGISTER (0x\d+)
+Value SERIAL_NUMBER (\S+)
+Value MEMORY (\d+K)
+Value MODEL (\S+)
+
+Start
+  ^cisco ${MODEL}\s+.*processor with ${MEMORY}/d+K bytes of memory
+  ^Configuration register is ${CONFIG_REGISTER}
+  ^Processor board ID ${SERIAL_NUMBER} -> Record <- put record at the end with the last start statement
+
+ ----------------------------------------------------------------
+
+!Here we will do an example with show ip bgp
+
+Value VALID_BEST ([*>]+) <-- When we match the show ip bgp we are looking for the * in the output. Since that is a Regex expression we put it between brackets so it does not treat it as Regex
+Value Filldown PREFIX (\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}/\d{1,2}  <-- The digits indicate any where from 1 to 3 digits.And the \. is a literal period not the RegEx special character. We then add the / for the mask and two digits for the prefix length. Since the routes have multiple next hops and the line is empty under network. The filldown option will keep the previouse network value for all of the next hops
+Value NEXT_HOP (\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3} <-- this will match an IP address perfectly for the NextHOP
 
 
+Start
+  ^\s+Network.*Path\s*SS -> ShowIPBgp <-- You need the double dollar sign because the dollar sign is a special character in textfsm. Here we strip all of the begining of the show ip bgp that we do not want and transition to the next state which we care about
 
+ShowIPBgp
+ ^ ${VALID_BEST}\s+${PREFIX}\s+${NEXT_HOP} -> Record
+ ^ ${VALID_BEST}\s+${NEXT_HOP} -> Record -> ## This option is used in the case for the filldown keyword where there is no entry for the network
+
+EOF
+
+ ------------------------------------------
+
+!To include TextFSM in your code
+
+import textfsm
+
+template_file = 'show_ip_int_brief.template'
+template = open(template_file)
+
+with open('show_ip_int_brief.txt') as f:
+    raw_text_data = f.read()
+
+import ipdb
+ipdb.set_trace()
+
+re_table = textfsm.TextFSM(template)
+data = re_table.ParseText(raw_text_data)
+
+template.close()
 
 
