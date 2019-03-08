@@ -1,0 +1,308 @@
+telnet and SSH are screen scraping methods. API interfaces are intended for programmatic consumption.
+With screen scraping the issues include changes in the command prompt waiting time for commands to complete. 
+data being unsctructured. Different code versions or different command outputs based on varying topolgies can cause unexpected
+results when working with screen scraping.
+
+Aristas API is called eAPI and it accessed via HTTP's and JSON. Restful API's use different URL's for different resources. You also use a GET
+to get information and HTTP post to post it or HTTP PUT to modify. With Arista you just use 1 URL and you always do an HTTP post everytime to change the JSON payload. So it is not really
+considered a REST API. 
+
+!To enable eAPI on Arista switch
+
+management api http-commands
+    protocol https
+    no shutdown
+
+!To confirm setup
+
+show management api http-commands
+
+!Writing the python code for eAPI
+
+import requests <-- for rest API's
+import json
+from pprint import pprint
+from getpass import getpass
+
+from urllib3.exceptions import InsecureRequestWarning <-- this is to disable SSL warnings
+import ipdb <-- for Python debugger
+
+if __name__ == "__main__":
+
+    # ipdb.set_trace()
+
+    http_headers = {"Content-Type": "application/json-rpc;"}
+    host = "arista8.lasthop.io"
+    port = 443
+    username = "pyclass"
+    password = getpass()
+
+    url = "https://{}:{}/command-api".format(host, port)
+
+    json_payload = {  <-- this is for the JSON request structure
+        "jsonrpc": "2.0",
+        "method": "runCmds",
+        "params": {"version": 1, "cmds": ["show version"], "format": "json"},
+        "id": "1",
+    }
+    json_data = json.dumps(json_payload) <-- this takes our python data strucutre and converts it to JSON
+    http_headers["Content-length"] = str(len(json_data))
+
+    response = requests.post(
+        url, <-- for passing in the URL
+        headers=http_headers, <-- passes in the HTTP headers
+        auth=(username, password),
+        data=json_data, <-- Passes in the JSON data for the payload
+        verify=False, <-- here we ignore the self signed certificate
+    )
+    response = response.json()
+
+    print()
+    pprint(response)
+print()
+
+!To look at the returned data you can print out
+
+response.__dict__
+
+or pprint(response)
+
+!To do a configuration
+
+import requests
+import json
+from pprint import pprint
+from getpass import getpass
+
+from urllib3.exceptions import InsecureRequestWarning
+import ipdb  # noqa
+
+requests.packages.urllib3.disable_warnings(category=InsecureRequestWarning)
+
+
+if __name__ == "__main__":
+
+    # ipdb.set_trace()
+    http_headers = {"Content-Type": "application/json-rpc;"}
+    host = "arista8.lasthop.io"
+    port = 443
+    username = "pyclass"
+    password = getpass()
+
+    url = "https://{}:{}/command-api".format(host, port)
+
+    cmds = [ <-- when confirguring the commands change slightly. 
+        "disable", <-- this starts with disable to ensure that you dont enable twice when you go into it below
+        {"cmd": "enable", "input": ""}, <-- here we go into enable mode and the input will be the password. It is blank here becuause in this example it is null
+        "configure terminal", <-- you must go into config t and then add the commands you want to enter in a list. 
+        "vlan 225",
+        "name green",
+    ]
+
+    json_payload = {
+        "jsonrpc": "2.0",
+        "method": "runCmds",
+        "params": {"version": 1, "cmds": cmds, "format": "json"}, <-- here we pass in the commands
+        "id": "1",
+    }
+    json_data = json.dumps(json_payload)
+    http_headers["Content-length"] = str(len(json_data))
+
+    response = requests.post(
+        url,
+        headers=http_headers,
+        auth=(username, password),
+        data=json_data,
+        verify=False,
+    )
+    response = response.json()
+
+    print()
+    pprint(response)
+print()
+
+!The response will show up with a list of empty dictionaries where you have one dictionary per command. 
+
+!Here is an Example where we use pyeAPI which was created by Arista to help us use eAPI. You should always do a search for a library and see what is available for dealing with the low level machanics of an API so you do not have to deal with those.
+
+!To ensure it is installed
+
+pip list | grep pyeapi
+
+!To install it
+
+pip install pyeapi
+pip install pyeapi==0.8.2
+
+!To write the code
+
+import pyeapi
+from getpass import getpass
+import ipdb
+
+
+ipdb.set_trace()
+connection = pyeapi.client.connect( <-- this creates the connection object
+    transport="https",
+    host="arista8.lasthop.io",
+    username="pyclass",
+    password=getpass(),
+    port="443",
+)
+
+# enable = getpass("Enable: ")
+# device = pyeapi.client.Node(connection, enablepwd=enable)
+device = pyeapi.client.Node(connection)
+
+!You can print connection to see connection details.
+print(connection)
+
+!You can see what options are available to you with peapi
+
+dir(device)
+
+!You can access several options from the dir output
+device.model
+device.version
+
+!You can also access config details and get help on how to display it such as list, string
+device.get_config()
+
+help(device.get_config)
+
+device.get_config('startup_config', as_string=True)
+
+! You can specify Arista device information in the eapi.conf file
+
+~/.eapi.conf
+
+[connection:arista7]
+host: arista7.lasthop.io
+
+[connection:arista8]
+host: arista8.lasthop.io
+
+[DEFAULT]
+username: pyclass
+password: !!!PASSWORD_NEEDS_SET!!!
+transport: https
+
+
+!or you can specify them like
+
+[connection:arista8]
+host: arista8.lasthop.io
+username: pyclass
+password: !!!PASSWORD_NEEDS_SET!!!
+transport: https
+
+
+!Now in our script we can make a connection to the device that is referenced in the peapi file
+
+import pyeapi
+
+device1 = pyeapi.connect_to("arista8")
+device2 = pyeapi.connect_to("arista7")
+print(device1)
+
+!Using pyeapi to execute show commands on the switch
+
+import pyeapi
+from getpass import getpass
+
+connection = pyeapi.client.connect(
+    transport="https",
+    host="arista8.lasthop.io",
+    username="pyclass",
+    password=getpass(),
+    port="443",
+)
+
+# enable = getpass("Enable: ")
+# device = pyeapi.client.Node(connection, enablepwd=enable)
+device = pyeapi.client.Node(connection) <-- here we create the node object. We can also use the eapiconf file as well as we did in the above example
+output = device.enable(["show version", "show ip arp"]) <-- this executes the show commands and ensures you are in the enable context. 
+print(output)
+
+!When we print the output we get a one element list back. We should peer that list to get into the internal data set
+
+pprint(output[0])
+
+!Using pyeapi for configuration
+
+import pyeapi
+from getpass import getpass
+
+connection = pyeapi.client.connect(
+    transport="https",
+    host="arista8.lasthop.io",
+    username="pyclass",
+    password=getpass(),
+    port="443",
+)
+
+cfg = ["vlan 225", "name green", "vlan 226", "name red"] <-- here we have a list of commands that will be sent to the router for configuration
+device = pyeapi.client.Node(connection)
+output = device.config(cfg) <-- here we send the list to the device
+print(output)
+
+!run_commands can also be used in place of .enable for show and .config for config commands
+
+!Arista pyeapi library has the abillity to grab information from the subsystem which can can be located below. The pro is that you will not have to execute all of the CLI commands. The negative is that you have
+to learn all of the details on how to use the subsystem. It is also limited to what it has available. 
+
+https://pyeapi.readthedocs.io/en/latest/modules.html
+
+import pyeapi
+from getpass import getpass
+
+connection = pyeapi.client.connect(
+    transport="https",
+    host="arista8.lasthop.io",
+    username="pyclass",
+    password=getpass(),
+    port="443",
+)
+
+enable = getpass("Enable: ")
+device = pyeapi.client.Node(connection, enablepwd=enable)
+
+vlan_cfg = device.api("vlans") <-- here we can the .api method instead of .config or .enable and we match the subsystem from the above document
+print(vlan_cfg)
+
+"""
+>>> vlan_cfg
+<pyeapi.api.vlans.Vlans object at 0x7f3f39eaac88>
+>>> vlan_cfg.getall()
+{'1': {'vlan_id': '1', 'name': 'default', 'state': 'active', 'trunk_groups': []}}
+>>> vlan_cfg.get(1)
+{'vlan_id': 1, 'name': 'default', 'state': 'active', 'trunk_groups': []}
+>>> help(vlan_cfg.create)
+>>> vlan_cfg.create(225) <-- can be used to create vlans
+True
+>>> vlan_cfg.create(226)
+True
+>>> vlan_cfg.create(226)
+True
+>>> vlan_cfg.create(227)
+True
+>>> vlan_cfg.set_name(225, "blue")
+True
+>>> vlan_cfg.set_name(226, "red")
+True
+>>> vlan_cfg.set_name(227, "orange")
+True
+>>> vlan_cfg.getall() <-- can be used to retrieve all vlans
+{'1': {'vlan_id': '1', 'name': 'default', 'state': 'active', 'trunk_groups': []}, '225':
+{'vlan_id': '225', 'name': 'blue', 'state': 'active', 'trunk_groups': []}, '226':
+{'vlan_id': '226', 'name': 'red', 'state': 'active', 'trunk_groups': []}, '227':
+{'vlan_id': '227', 'name': 'orange', 'state': 'active', 'trunk_groups': []}}
+"""
+!You can also get more info on what can be done
+
+help(device.api)
+
+!And you can access multiple subsystems
+
+device.api('bgp')
+device.api('acl')
