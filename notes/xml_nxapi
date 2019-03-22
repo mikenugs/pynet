@@ -1,0 +1,255 @@
+Why is XML important why not use JSON instead? Netconf still uses XML under the hood for how
+the data is serialized. NX-API uses XML as well. Junos can display XML in their show commands. 
+There is an XML sussystem with IOS-XR. There is Netconf has Restconf NXAPI has JSON RPC mode. 
+The reason XML is still important is that there are still devices that just support XML at this point for data serialization.
+
+XML for NetEngineers uses three librariries primarily xmltodict, lxml lmint-tree
+
+Think of XML as a tree where you have a root node or top of three tree and undernear you
+have child nodes or roots of three tree. Trees are formed with tags and element nodes
+reside within those tags. Attributes are defined under the element nodes. 
+
+The root node does not have any parents, the child nodes are under the root node. 
+Tags have an open and close and contain everything within the tags. 
+
+Sibling nodes are on the same level of the hierarchy. 
+
+Decendents are all the nodes under the root node and the root node is the ancester. 
+
+xmltodict will convert XML to a Python dictionary in the case where you may want to work with
+JSON as apposed to XML. This is dificult to do when you deal with XML since you are dealing with
+chilod nodes, siblings parent nodes, etc since those do not natively match with a dictionary.
+
+import xmltodict
+
+xmlfile = open('show_version.xml')
+xmldata = xmlfile.read().strip()
+
+my_xml = xmltodict.parse(xmldata)
+
+!To look at the keys
+
+my_xml.keys()
+
+!Continue to drill down based on the response
+
+my_xml['software-information']
+
+my_xml['software-information'].keys()
+
+!Sometimes when you are deiving into your data set you will find that instead of recieving 
+text back you will get a list of strings. You can force this particular data to always return
+a list even when there is only one string item. That way you can keep your code consistent
+
+my_xml = xmltodict.parse(xmldata, force_list={'product-model': True}) <- where product model is the key value which may or may not have one element
+
+!Instead of using xmltodict and trying to cram XML tree structure into a Python data structure you can
+alternatively use LXML to process the XML.
+
+from lxml import etree
+
+my_xml = etree.parse('juniper_show_version.xml')
+
+!To get the root of the tree. This will show you the element not the string representation
+
+my_xml = my_xml.getroot()
+
+!To see the tag name
+
+my_xml.tag
+
+!To see the string representation of the root
+
+print(etree.tostring(my_xml).decode()) <-- the dcode changes it from a byte string to unicode
+
+!There are two options with for XML a.) LXML b.) and the Elementtree built in XML library.
+The LXML option typically has better performace due to its C bindings.
+
+!Builtin Elementtree
+
+xml_string = '''
+ XML CODE HERE
+'''
+
+my_xml = etree.fromstring(xml_string.strip())
+
+!To view the tags
+
+my_xml.tag
+
+!Using LXML
+
+from lxml import etree
+
+a = '''
+ XML DATA
+'''
+
+my_xml = etree.fromstring(a)
+
+string = etree.tostring(my_xml).decode() <- to convert back to a string to see the structured XML
+
+my_xml.tag <-- to see the tags
+
+!Traversing the tree to extract interesting data via LXML
+
+my_xml.getchildren() <-- to get the children
+
+my_xml[0] <-- gets the first child
+my_xml[1] <-- gets the second child
+my_xml[0].getchildren() will get the children of the first child
+my_xml[1][0] <-- to get the first child of the second parent
+
+dir(my_xml) <-- will show you all of the get information and iterators
+
+!You can also iterate through the children
+
+for child in my_xml:
+    print (child)
+
+for child in my_xml:
+    print (child.tag)
+
+for child in my_xml.iterdescendants():
+   print (child) <-- will show all of the descendants
+
+!Using LXML and findall()
+
+from lxml import etree
+
+etree.fromstring(a)
+
+my_xml = stree.fromstring(a)
+
+print(etree.tostring(my_xml).decode()) <-- to view the XML to know what to search on
+
+my_xml.find('software-information') <-- will find it if it is directly connected to root. Will not find something that is a grandchild of the root
+
+my_xml.find('./software-information/product-name') <-- will search downstream from the root
+
+my_xml.findall('software-information/product-name') <-- will find all occurances of this
+
+my_xml.findall('.//product-name') <-- will do the same as above finds all tags named product name
+
+my_xml.find('.//product-name') <-- finds the first tag named product name
+
+my_xml.findall('.//product-name')[0].tag
+my_xml.findall('.//product-name')[0].text <-- will show you the text associated with product name
+
+!XML Namespaces make things difficult for what with do with NetEngineering. When dealing with a large
+amount of XML you could have issues with tags sharing a name but are different in value. Namespaces keep the names unique
+by giving it a fully qualified name. This is used to uniquely identify information within the XML tree
+
+from lxml import etree
+
+etree.parse('nxos_ns.xml')
+x = etree.parse('nxos_ns.xml')
+my_xml = x.getroot()
+
+my_xml.tag <- will show you the name space which will be between the {}
+
+print(etree.tostring(my_xml).decode()) <-- to show the XML
+
+my_xml.find('.') <-- doing a find on the root will give you the name space which is closed in brackets {}
+
+!LXML wants you to use namespace with your searches
+
+my_xml.find('{NAMSPACEURL}data') <-- where data is what we are searching for
+
+my_xml.find('{*}data') <-- will search all namespaces
+
+my_xml.find('.//{*}show').text <-- will give you the associated text
+
+!Cisco NX-API
+
+Is a website URL that you can use to interact with your Nexus device. XML works better than JSON-RPC when
+choosing a method to interact with the router. With this tool you can type the command that you want to execute
+against the router and below this there are two boxes. The first is the request box which will craft either
+the XML or JSON message. The second is the response back in XML or JSON. 
+
+If you choose cli_asci you get your response back in one long string as apposed to structured data
+
+Ideally you do not want to deal with the low level construction of the Json RPC request. You can use
+nxapi-plumbing, pynxos and NAPALM to take care of that for you
+
+!Using Nx-API plumbing
+
+import requests <-- using requests is needed to disable the SSL certificates we recieve
+from requests.packages.urllib3.exceptions import InsecureRequestWarning
+from getpass import getpass
+from nxapi_plumbing import Device <-- here we import the library
+
+requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
+
+device = Device( <-- Here we define the device information 
+    api_format="jsonrpc",
+    host="nxos1.lasthop.io",
+    username="pyclass",
+    password=getpass(),
+    transport="https",
+    port=8443,
+    verify=False, <-- turn off SSL certificate
+)
+
+output = device.show("show hostname")
+print(output)
+
+!You can also call upon a list of commands
+
+cmds = [
+    'show hostname',
+    'show version',
+    'show lldp neighbors',
+]
+
+output = device.show_list(cmds)
+print(output)
+
+!To navigate through the response
+
+type(output) <-- here we see it is a list
+len(output) <-- the length is three since we sent three commands
+output[0].keys() <-- here we get the keys for the first command
+output[0]['command'] <-- this is the first key and tells us the command we used
+output[0]['result'] <-- this gives us the result from the command
+
+!The raw text option has us toggle cli_asci in the Sandbox so we do not get structured data
+
+cmds = [
+    'show version'
+]
+output = device.show_list(cmds, raw_text=True)
+pprint(output)
+
+!NX-API and nxapi plumbing and XML
+
+import requests
+from lxml import etree <-- here we import LXML
+from requests.packages.urllib3.exceptions import InsecureRequestWarning
+from getpass import getpass
+from nxapi_plumbing import Device
+
+requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
+
+device = Device(
+    api_format="xml",   <-- this is set to XML as apposed to JasonRPC
+    host="nxos1.lasthop.io",
+    username="pyclass",
+    password=getpass(),
+    transport="https",
+    port=8443,
+    verify=False,
+)
+
+output = device.show("show hostname")
+print(etree.tostring(output).decode())
+
+!If you are iterating through multiple commands in XML you need to
+
+output = device.show_list(cmds)
+for entry in output:
+    print(etree.tostring(entry).decode())
+    input("Hit enter to continue: ")
+
+
+
