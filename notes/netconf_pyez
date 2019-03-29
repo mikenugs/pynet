@@ -146,3 +146,96 @@ print(cfg.diff()) <-- This will perform a configuration DIFF
 
 cfg.load(path="test_config.conf", format="text", merge=True)
 cfg.unlock() <-- This will unlock the configuration so other people can enter config mode
+
+!Juniper PyEZ with config file
+
+from jnpr.junos import Device
+from jnpr.junos.utils.config import Config
+from getpass import getpass
+
+a_device = Device(host="srx2.lasthop.io", user="pyclass", password=getpass())
+a_device.open()
+a_device.timeout = 60
+
+cfg = Config(a_device)
+cfg.lock()
+
+cfg.load(path="test_config.conf", format="text", merge=True) <-- here we load the config from a config file. Text instead of set means that the syntax will be curly braze notation instead of set commands
+# cfg.load(path="test_replace.conf", format="text", merge=False) <-- If you use the merge=False you need to specify replace in the config as well. With replace it removes that portion of the config that you are trying to push and implement whatever you are trying to push.
+# cfg.commit()
+# cfg.commit(comment="Testing from pyez")
+# cfg.unlock()
+
+!PyEZ configuration and XML
+
+from jnpr.junos import Device
+from jnpr.junos.utils.config import Config
+from getpass import getpass
+
+a_device = Device(host="srx2.lasthop.io", user="pyclass", password=getpass())
+a_device.open()
+a_device.timeout = 60
+
+cfg = Config(a_device)
+cfg.lock()
+
+cfg.load(path="test_config.xml", format="xml", merge=True) <-- here we specify the XML configuration
+# overwrite=True - full configuration replace so be careful
+# cfg.commit(confirm=1)
+# cfg.commit()
+# cfg.unlock()
+
+ ----------- XML for configuration -----------
+
+<configuration>
+        <routing-options>
+            <static>
+                <route>
+                    <name>1.1.4.0/24</name>
+                    <next-hop>10.220.88.1</next-hop>
+                </route>
+            </static>
+        </routing-options>
+</configuration>
+
+!You can check the config difference using
+
+print(cfg.diff())
+
+!You can also do a commit confirmed
+
+cfg.commit(confirm=1)
+
+!If you specify overwrite then it will delete the entire configuration and load your config as the new active configuration
+
+cfg.load(path="test_config.xml", format="xml", overwrite=True)
+
+!Juniper PYEz and RPC requests to retrieve information
+
+!What you would want to do to get the configuration syntax to send is log into the router
+and perform a "show <command> | display xml rpc" there you can get the output of the syntax to send to the router.
+When the syntax comes back you can get the RPC syntax it will be between the
+<rpc>
+  HERE YOU WILL FIND THE COMMAND TO USE just strip the <> at the end ALSO CHANGE THE - to a _
+</rpc>
+
+#!/usr/bin/env python
+from __future__ import print_function, unicode_literals
+
+from jnpr.junos import Device
+from lxml import etree
+from getpass import getpass
+
+juniper_srx = {"host": "srx2.lasthop.io", "user": "pyclass", "password": getpass()}
+
+a_device = Device(**juniper_srx) <-- here we create the juniper device object
+a_device.open() <-- here we establish the Netconf connection
+
+# show version | display xml rpc
+# <get-software-information>
+# xml_out = a_device.rpc.get_software_information()
+# print(etree.tostring(xml_out, encoding="unicode"))
+
+# get_lldp_neighbors_information()
+xml_out = a_device.rpc.get_lldp_neighbors_information() <-- Makes an RPC request to the device using Netconf. It takes the get information from the RPC output from the show command in this example get_lldp_neighbors_information. We then add a method call at the end ()
+print(etree.tostring(xml_out, encoding="unicode")) <-- to print this we use etree from the XML library we convert it to a string and pass it the variable name from our API call object. Encoding = unicode does the same thing as the decode that we have done in previouse examples
