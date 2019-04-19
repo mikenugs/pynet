@@ -1,0 +1,130 @@
+PEP8 is the Python style standards that should be followed when writing code. This is not
+a mandate but is rather considered best practice. 
+
+https://www.python.org/dev/peps/pep-0008/
+
+Naming conventions and line length should be import to follow
+
+#Linters in Python with Pylint
+
+By running pylint on your Python program name you can get messages back stating what lines of code do not follow PEP8 standards
+
+pylint python_program.py
+
+You can also use Pycode style as a linter as well.
+
+pycodestyle python_program.py
+
+Pylama can be used to specify the rules you want pylint or pycodestyle to check for 
+
+Python Black can be used to autoformat your code for your linter
+
+!This will tell you what will change
+
+black --check .
+
+!To change the file
+black python_program.py
+
+Kirk uses black for autoformating and pylama for checking pep8 compatibility
+
+Having your python code perform testing can be benificial in cases where you are concerned
+that changes can affect your program.
+
+pytest and unittest can be used to perform this testing and kirk recommends pytest
+
+!The below command will search under the directory and subdirectory for any program that begins
+with test_. It then looks at any function with the name test_ or class with Test it will then run all those tests
+
+py.test -s -v directory/
+
+!You can also run this on a single program by
+
+!or a single module
+
+py.test -s -v directory/python_program.py::test_module
+
+!example using Netmiko and pytest
+
+from getpass import getpass
+from netmiko import ConnectHandler
+
+
+def netmiko_conn():
+    net_connect = ConnectHandler(
+        host="cisco3.lasthop.io",
+        device_type="cisco_ios",
+        username="pyclass",
+        password=getpass(),
+    )
+    return net_connect
+
+
+def test_find_prompt():
+    net_connect = netmiko_conn()
+    assert "cisco3#" in net_connect.find_prompt()
+
+
+def test_send_command():
+    net_connect = netmiko_conn()
+    output = net_connect.send_command("show ip int brief")
+    assert "10.220.88.22" in output
+
+!When you use the above code Netmiko will create a session for each test. You can use fictures to just
+have one Netmiko session to run all of the tests on
+
+import pytest
+from getpass import getpass
+from netmiko import ConnectHandler
+
+password = getpass()
+
+
+# @pytest.fixture
+@pytest.fixture(scope="module") <- specifying module will use the fixture for all functions
+def netmiko_conn():
+    net_connect = ConnectHandler(
+        host="cisco3.lasthop.io",
+        device_type="cisco_ios",
+        username="pyclass",
+        password=password,
+    )
+    return net_connect
+
+
+def test_find_prompt(netmiko_conn): <-- here you specify the fixture module name
+    assert "cisco3#" in netmiko_conn.find_prompt() <-- here you specify the function name prior to find_prompt
+
+
+def test_send_command(netmiko_conn):
+    output = netmiko_conn.send_command("show ip int brief")
+    assert "10.220.88.22" in output
+
+#You can also gracefully teardown the Netmiko connection as well using the following
+
+@pytest.fixture(scope="module")
+def netmiko_conn(request):
+    net_connect = ConnectHandler(
+        host="cisco3.lasthop.io",
+        device_type="cisco_ios",
+        username="pyclass",
+        password=password,
+    )
+
+    def fin(): <-- This is added to the previouse code
+      net_connect.disconnect() <-- This is added to the previouse code
+
+    request.addfinalizer(fin) <-- This is added to the previouse code
+    return net_connect
+
+Tox can be used to test your code against multiple versions of Python
+
+CI/CD continues integration and continues deployment. This is when you 
+frequently check your code into the main branch. The theory with CI is the 
+less code we have to integrate the easier it is to find the problem if we 
+have to troubleshoot. With CD once you pass tests then you can push it to
+production. There are many CI/CD systems such as Jenkins, Travis, Azure pipelines.
+
+With travisci you need to login to github and authorize travisci
+You then pick the repositories that you want travisci to have access to
+
