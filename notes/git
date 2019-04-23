@@ -16,6 +16,14 @@ git remote -v
 #shows the branches on the remote server
 git branch -r
 
+#add a new `remote` in Git by doing:
+
+git remote add foo https://github.com/git_user/pyplus_course
+
+!That will create a remote named `foo`
+
+!You can then do `git push foo master`
+
 #sets the name and e-mail you want associated with commits
 git config --global user.name "[name]"
 git config --global user.email "[email address]"
