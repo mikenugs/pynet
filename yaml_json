@@ -1,0 +1,122 @@
+!Why do we need YAML and JSON? We need to be able to take data sets from one computer and application between other programs. We do this by taking the data sets and serializing them into a stream of bytes. We also need to make sure that the remote end that recieves this data can enterprate the data. YAML and JSON are two of the common serialization protocols. 
+!JSON is good for computer to computer communications when humans are not involved. In general this is used for web type API's. Its not that good for human biengs to write JSON. 
+!YAML is much easier for human biengs to read and write it. Examples would be Ansible, Salt or HEAT templates.
+
+--- <- Yaml starts with three lines
+
+- whatever <- This is a list
+- whatever2 <- second element in the list
+- whatever3 <- third element in the list
+
+!You can load a yaml file in Python and look at the contents as if it where Python data structure
+
+import yaml
+filename = input("Enter filename: ")
+with open(filename) as f:
+    yaml_out = yaml.load(f)
+print(yaml_out)
+
+!Run this program in python interactive mode and you will see a list come back from the python file
+
+dir <-- in python interactive mode will tell you the options for this object
+
+yaml_out[0] <-- will show you the first element in the list
+
+type(yaml_out) <-- to show the data type
+
+!To create a dictionary in YAML you follow the below format. If you import this in python it will look just like a dictionary
+
+---
+key1: value1
+key2: value2
+key3: value3
+
+yaml_out
+type(yaml_out)
+yaml_out['key2']
+
+!if you want to nest dictionarys in YAML you can follow the below format
+
+---
+router1: <-- this will be the outer key with the below key value pairs wrapped within
+    device_type: cisco_ios
+    ip_addr: 1.1.1.1
+    username: admin
+    password: foo
+
+!Below we will take a look at a list with other Python data types such as strings, Booleans
+
+---
+ - some_string
+ - "some string with multiple words"
+ - null
+ # Booleans
+ - True
+ - False
+ - true
+ - false
+ - on
+ - off
+ - yes
+ - no
+ - 'yes' <- string
+ - |
+   This is a multine string using the PIPE character in YAML
+   Here is its second line in the multine string it has newlines for each line
+ - > 
+   You can also use the greater than sign for multine line strings
+   when you do this it will not add the newline like the pipe character does
+
+
+!YAML has both a condensed and expanded format in expanded format data is dislayed
+similar to how we write a YAML file. In condensed format data is displayed similar to a JSON data. This can be controlled below when you write a YAML file with the 
+default_flow_style toggled to False
+
+with open(filename, 'wt') as f:
+    yaml.dump(my_data, f, default_flow_style=True)
+
+!JSON is frequently used for CPU to CPU interaction such as API and web payloads. 
+!Below we will print out a data type as Python and then as JSON.
+
+my_data = {
+   'device_name': 'rtr1',
+}
+
+some_list = list(range(10))
+my_data['some_list'] = some_list
+my_data['null_value'] = None
+
+filename = 'outfile.json'
+with open(filename, 'wt') as f:
+    json.dump(my_data, f, indent=4)
+
+print('Python')
+print(my_data)
+print('JSON')
+print(json.dumps(my_data))
+
+!To load a JSON file in Python
+
+import json
+from pprint import pprint
+
+filename = input('Input filename: ')
+with open(filename) as f:
+    data = json.load(f)
+pprint(data)
+
+!You can then run the program in interactive mode 
+
+ipython -y json_load.json
+
+dir()
+
+data_set_name <-- to look at the contents of the data
+
+type(data_set_name)
+
+data.keys()
+data['key_name']
+data['key_name_of_list'][2] <-- to view an element of a list inside a citionary
+
+

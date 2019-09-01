@@ -1,0 +1,328 @@
+If you have 1K devices you want to SSH into it would take a long time if you waited for the task
+to complete before logging into the next device. Ideally you want to fire off these tasks at
+nearly the same time across these devices
+
+parallelism - you can execute more than one thing at the exact same time. you would need more
+than one CPU or core to accomplish this
+
+concurrency - this is a superset of paralllism where you run multiple jobs but the CPU will
+give cycles in milliseconds to different jobs so it seems that it runs in parrelel but it 
+really does not. 
+
+there are three ways to achieve concurrency. 
+a.) threads
+b.) processes
+c.) asynchronous <- very complex to do
+
+threads - with this you have a single system process for a program. take for example when you
+use top you will see one process ID for it. Inside this process you will have independantly 
+executed thing which we can refer to as threads. We can spin up multiple of these threads
+and the job scheduler will choose which one runs. This is what enables our concurency.
+The down side to this is you could run into race conditions because the scheduler chooses 
+the process and it may not know which one needs to run. Also if a thread locks a resource and
+another thread needs to access it you can run into a deadlock situation. There is a global
+interepter lock or GIL that will ensure that a single process only allows a thread to run
+at any point of time and not in parrallel. If you have multiple CPU's available this can be an issue
+but with network autoimation we are IO bound and typically we are waiting for a remote system
+to respond so this is not a big deal for us. Sharing data between threads is also difficult.
+
+processes - when using multiple processes you fire up multiple independant python processes. So
+in top you will see more than one process and each process has a single thread. In the network
+automation world you would see 50 different processes and each of these would be logging into
+a device. This gets around the GIL and you can use multiple CPU's using this. You can still
+run into race conditions if you are waiting on a process to finish before doing something. It
+is also hard to share data between processes. Processes also require more resources. 
+
+The waiting for IO with network automation makes using threads or processes run at a similar
+time frame so there should be no value add to using either of these techniques.
+
+ - Example using legacy threading
+
+from __future__ import print_function, unicode_literals
+import threading                                <--- here we import threading library
+from datetime import datetime
+from netmiko import ConnectHandler
+from my_devices import device_list as devices
+
+
+def show_version(a_device):
+    """Execute show version command using Netmiko."""
+    print()
+    print("#" * 80)
+    remote_conn = ConnectHandler(**a_device)
+    output = remote_conn.send_command_expect("show version")
+    remote_conn.disconnect()
+    print(output)
+    print("#" * 80)
+    print()
+
+
+def main():
+    """
+    Use threads and Netmiko to connect to each of the devices. Execute
+    'show version' on each device. Record the amount of time required to do this.
+    """
+    start_time = datetime.now()
+
+    for a_device in devices:   <------ Loop over each device
+        my_thread = threading.Thread(target=show_version, args=(a_device,))  <---- here we start a new thread. This creates a Netmiko connection and executes the show version command by calling the above function
+        my_thread.start()    <--- we should have 10 threads since there are 10 devices
+
+    main_thread = threading.currentThread()  <-- this makes a reference to the main thread
+    for some_thread in threading.enumerate(): <-- this goes through all of the threads that we have with threading_enumerate and iterates through those
+        if some_thread != main_thread: <-- this says if its the main thread skip it
+            print(some_thread)
+            some_thread.join() <-- this says wait until all of these threads complete and then drops out of the section and prints the results
+
+    print("\nElapsed time: " + str(datetime.now() - start_time))
+
+
+if __name__ == "__main__":
+main()
+
+processes - 
+
+processes example ##
+
+#!/usr/bin/env python
+"""
+Use processes and Netmiko to connect to each of the devices. Execute
+'show version' on each device. Record the amount of time required to do this.
+"""
+from __future__ import print_function, unicode_literals
+from multiprocessing import Process   <-- here we import the processes class
+
+from datetime import datetime
+from netmiko import ConnectHandler
+from my_devices import device_list as devices
+
+
+def show_version(a_device):           <--- this function handles connecting to the device and performing the show version
+    """Execute show version command using Netmiko."""
+    remote_conn = ConnectHandler(**a_device)
+    output = remote_conn.send_command_expect("show version")
+    remote_conn.disconnect()
+    print()
+    print("#" * 80)
+    print(output)
+    print("#" * 80)
+    print()
+
+
+def main():
+    """
+    Use processes and Netmiko to connect to each of the devices. Execute
+    'show version' on each device. Record the amount of time required to do this.
+    """
+    start_time = datetime.now()
+
+    procs = []
+    for a_device in devices: <-- here we establish each one of the processes by iterating through the devices and creating a process for each one
+        my_proc = Process(target=show_version, args=(a_device,)) <-- here we use the Process class to create a new process we pass in a reference to the function just like we do with threading
+        my_proc.start() <-- here we start the process
+        procs.append(my_proc) <-- here we add it to the list of processes
+
+    for a_proc in procs: <-- here we loop over the processes
+        # print(a_proc) 
+        a_proc.join() <-- here we do a join operation to wait until the process is completed
+
+    print("\nElapsed time: " + str(datetime.now() - start_time))
+
+
+if __name__ == "__main__":
+main()
+
+Concurrent Futures - Makes threading and multiprocessing easier by switching between wether
+you use threading or multi processing and makes it easier to communicate between threads and
+processes
+
+Concurrent Futures example ## 1
+
+import time
+from concurrent.futures import ThreadPoolExecutor <-- makes a thread pool of threads using concurrent futures. If we wanted to use processes instead of threads you can swap out threadpoolexuector for processes
+from datetime import datetime
+from netmiko import ConnectHandler
+from my_devices import device_list
+
+
+def ssh_conn(device):
+    net_connect = ConnectHandler(**device)
+    return net_connect.find_prompt()
+
+
+if __name__ == "__main__":
+
+    start_time = datetime.now() <-- here we start the counter
+    max_threads = 4 <-- here we specify the number of threads to use
+
+    pool = ThreadPoolExecutor(max_threads) <-- Here we create an instance of the ThreadPoolExecuter object and pass in the maximum number of threads that we created above
+    future = pool.submit(ssh_conn, device_list[0]) <-- pool.submit creates another child thread 
+
+    print(future.done()) <-- here we look at the variable we created above and check to see if it is done
+    time.sleep(5) <-- sleep 5 seconds
+    print(future.done()) <--- here we check again to see if it is done
+
+    # Waits until the future is complete
+    print("Result: " + future.result())
+
+    end_time = datetime.now()
+print(end_time - start_time)
+
+Concurrent Futures example ## 2 with WAIT TIMER
+
+from concurrent.futures import ThreadPoolExecutor, wait <-- we import threads and wait
+from datetime import datetime
+from netmiko import ConnectHandler
+from my_devices import device_list
+
+
+def ssh_conn(device):
+    net_connect = ConnectHandler(**device)
+    return net_connect.find_prompt()
+
+
+if __name__ == "__main__":
+
+    start_time = datetime.now()
+    max_threads = 4
+
+    pool = ThreadPoolExecutor(max_threads) <-- The above three commands starts off exactly like before
+
+    future_list = []
+    for a_device in device_list: <-- here we loop through all of the devices
+        future = pool.submit(ssh_conn, a_device) <-- here we begin creating threads. since we specified a maximum of 4 the first 4 will need to be completed before starting any new threads.
+        future_list.append(future) <-- here we add to the list we created of futures
+
+    # Waits until all the pending threads are done
+    wait(future_list) <-- instead of doing a join we wait until all of the threads are done
+
+    for future in future_list:
+        print("Result: " + future.result())
+
+    end_time = datetime.now()
+print(end_time - start_time)
+
+Concurrent Futures - as_completed 
+
+from concurrent.futures import ThreadPoolExecutor, as_completed <-- here we import as_completed instead of max_threads
+from datetime import datetime
+from netmiko import ConnectHandler
+from my_devices import device_list
+
+
+def ssh_conn(device):
+    net_connect = ConnectHandler(**device)
+    return net_connect.find_prompt()
+
+
+if __name__ == "__main__":
+
+    start_time = datetime.now()
+    max_threads = 4
+
+    pool = ThreadPoolExecutor(max_threads)
+
+    future_list = []
+    for a_device in device_list:
+        future = pool.submit(ssh_conn, a_device)
+        future_list.append(future)
+
+    # Process as completed
+    for future in as_completed(future_list): <-- here we say for future in as_completed function and send it the future_list we created. As each of these gets completed we will have a future available to us
+        print("Result: " + future.result()) <-- whichever one is fastest will print out the result first and so on
+        end_time = datetime.now()
+print(end_time - start_time)
+
+Concurrent Futures - as_completed with context manager
+
+!This can be used to clean up the thread pool as it completes
+
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from datetime import datetime
+from netmiko import ConnectHandler
+from my_devices import device_list
+
+
+def ssh_conn(device):
+    net_connect = ConnectHandler(**device)
+    return net_connect.find_prompt()
+
+
+if __name__ == "__main__":
+
+    start_time = datetime.now()
+    max_threads = 4
+
+    # Use context manager to gracefully cleanup the pool
+    with ThreadPoolExecutor(max_threads) as pool: <-- all of the code is the same except we use with to invoke the threadpoolexecutor function
+        future_list = []
+        for a_device in device_list:
+            future = pool.submit(ssh_conn, a_device)
+            future_list.append(future)
+
+        # Process as completed
+        for future in as_completed(future_list):
+            print("Result: " + future.result())
+            end_time = datetime.now()
+print(end_time - start_time)
+
+Concurrent Futures - map "makes the code simpler"
+
+from concurrent.futures import ThreadPoolExecutor
+from my_devices import device_list
+from netmiko import ConnectHandler
+from datetime import datetime
+
+
+def ssh_conn(device):
+    net_connect = ConnectHandler(**device)
+    return net_connect.find_prompt()
+
+
+if __name__ == "__main__":
+
+    start_time = datetime.now()
+    max_threads = 4
+
+    with ThreadPoolExecutor(max_threads) as pool: <--- here we create a threadpool
+        results_generator = pool.map(ssh_conn, device_list) <-- here we call the pool variable we created above and the .map method on the pool. We call the ssh_conn function we created which uses netmiko to connect to the device and give us the prompt. We also pass in the list of devices called device list. This passes each one of the things in the list to ssh_conn as a new thread. This takes place of what we did previously with pool.submitand saves all this as results_generator
+
+        # Results generator
+        for result in results_generator: <-- as the results finish we print them
+            print(result)
+            end_time = datetime.now()
+print(end_time - start_time)
+
+Concurrent Futures - Processes
+
+To use MultiProcesses instead of Threadpools you just change all of the code below that says 
+ThreadPoolExecutor with ProcessPoolExecutor
+
+from concurrent.futures import ThreadPoolExecutor
+from my_devices import device_list
+from netmiko import ConnectHandler
+from datetime import datetime
+
+
+def ssh_conn(device): <--- here we have a more complex function that creates a dictionary and returns it
+    return_dict = {}
+    net_connect = ConnectHandler(**device)
+    dns_name = net_connect.host
+    my_prompt = net_connect.find_prompt()
+    return_dict[dns_name] = my_prompt
+    return return_dict
+
+
+if __name__ == "__main__":
+
+    start_time = datetime.now()
+    max_threads = 4
+
+    with ThreadPoolExecutor(max_threads) as pool: <--- here we create our threadpool and assign it to a variable called pool
+        results_generator = pool.map(ssh_conn, device_list) <-- here we send a list of devices to the function called ssh_conn and save it as results_generator
+
+        # Results generator
+        for result in results_generator: <-- here we print this out the results as they come in.
+            print(result) <-- here we print the dictionary that is returned to us
+            end_time = datetime.now()
+print(end_time - start_time)

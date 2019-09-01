@@ -1,0 +1,241 @@
+Netconf is a standardized API that is supported by network vendors. Was originated by Juniper.
+At the lowest layer uses secure transport over SSH over TCP port 830. 
+
+!To configure on Juniper
+
+set servoces netconf ssh
+
+!To configure on Cisco IOS XE
+
+netconf-yang
+
+Ideally you want to use a library to deal with Netconf and not nccclient you PyEZ juniper abstracts lower layer machanics
+Inside the SSH session you will be sending XML within an RPC or RPC reply tag message. Embedded inside those messages Netconf supports GET, GET-CONFIG, EDIT-CONFIG, LOCK-DEVICE.. etc. Inside all of that you will have the XML data.
+
+Yang is a modeling language and specifies what the data should look. What fields should be there and what those fields should look like, string, number ...etc. It does not specify how to get it to the device. It will tell you how the interface should be configured. Historically the Yang would get converted to XML and get passed across the Netconf session to the remote device which will deconstruct the XML and get back the yang data model. Now the yang data model has been decoppled from the underlying API Netconf transport using things like Restconf. So instead of SSH transport you will use URL's and HTTP's with GET, POST, DELETE options to accomplish what we 
+want to accomplish. GRPC has also been used as a transport protocol for Netconf as well. 
+
+!Using NCCCLIENT
+
+from ncclient import manager
+from getpass import getpass
+from pprint import pprint
+
+with manager.connect(
+    host="srx2.lasthop.io",
+    # host="cisco3.lasthop.io",
+    port=830,
+    username="pyclass",
+    password=getpass(),
+    hostkey_verify=False, <-- turned off host key verification
+    allow_agent=False,
+    look_for_keys=False, <-- does not use SSH key verification
+) as netconf_manager:
+
+pprint(netconf_manager.server_capabilities.__dict__) <-- server capabilities is used so each side can communicate what they are capable of doing
+
+!With this example you use all of the same above configuration
+
+conn = manager.connect( <-- Here we use an object for the Netconf connection as apposed to closing it immediatly with the with command.
+
+config = conn.get_config(source="running")
+config_xml = config.data_xml <-- gives a XML string rendering back
+print(config_xml)
+
+!Juniper PYEZ Library
+
+Created by Juniper to help interface to the Netconf API. 
+
+from jnpr.junos import Device <-- here we import device from the Juniper PYEZ library
+from getpass import getpass
+from pprint import pprint
+
+a_device = Device(host="srx2.lasthop.io", user="pyclass", password=getpass()) <-- pass in login info
+a_device.open() <-- Open/establish the Netconf session 
+pprint(a_device.facts) <-- here we retrive facts back
+
+
+!Here we look at predefined tables to look at information. You can find a list of these tables here
+
+https://www.juniper.net/documentation/en_US/junos-pyez/topics/reference/general/junos-pyez-tables-op-predefined.html
+
+from jnpr.junos import Device
+from jnpr.junos.op.ethport import EthPortTable <-- Here we import EthPortTable in addition to the device class
+from getpass import getpass
+from pprint import pprint
+
+# import ipdb
+
+a_device = Device(host="srx2.lasthop.io", user="pyclass", password=getpass())
+a_device.open() <-- Establish the Netconf connection
+
+# ipdb.set_trace()
+ports = EthPortTable(a_device) <-- here we pass in the Netconf connection to the EthportTables
+ports.get()  <-- Goes to the device gathers the information and returns it back in a dictionary
+
+print(ports)
+print(ports.keys()) <-- will show you all the ports
+pprint(ports.values())
+pprint(ports.items()) <-- will show you the information within the port
+
+!If it says zip it wants you to iterate over it you can do a 
+
+list(ports['fe-0/0/7'].items()) <-- this will return the data back in tuples
+dict(ports['fe-0/0/7'].items()) <-- this will return the data back in a dictionary
+
+!You can also iterate through this
+
+for k in ports:
+    print(k)
+
+for k, v in ports.items():
+    print(k)
+    print(v)
+    break <-- will stop after the first iteration
+
+!Juniper PYEZ Example #2
+
+from jnpr.junos import Device
+from jnpr.junos.op.arp import ArpTable
+from getpass import getpass
+
+# from pprint import pprint
+
+a_device = Device(host="srx2.lasthop.io", user="pyclass", password=getpass())
+a_device.open()
+
+arp_entries = ArpTable(a_device) <-- we use the ArpTable class and pass in the a_device Netconf object which will return back structured data
+arp_entries.get()
+
+dir(arp_entries) <-- will tell us which methods are available to us
+help(ArpTable) <-- will tell us more information
+
+arp_entries.keys() <-- will give us back the MAC address
+arp_entries['ACTUAL MAC'] <-- To get detailed info on that dictionary key
+dir(arp_entries['ACTUAL MAC']) <-- to show what methods are available to you from this point
+arp_entries['ACTUAL MAC'].keys() <-- to see the keys
+arp_entries.items() 
+
+!You can also iterate over this data
+
+for x in arp_entries.items():
+    print(x)
+    break
+
+!Using PyEZ for operational configurations
+
+from jnpr.junos import Device <-- here we import the Device class
+from jnpr.junos.utils.config import Config <-- Here we import the Config class
+from getpass import getpass
+
+a_device = Device(host="srx2.lasthop.io", user="pyclass", password=getpass())
+a_device.open()
+a_device.timeout = 60 <-- Timeout changed since Junos operations can sometimes take extra time to run
+
+cfg = Config(a_device) <-- Take Config class and pass in the Netconf object to create the cfg object
+cfg.lock() <-- This will prevent anyone else from making a change at the same time
+
+cfg.load("set system host-name test123", format="set", merge=True) <-- Here we add the single line of configuration
+cfg.rollback(0) <-- This will rollback the configuration
+
+cfg.load("set system host-name test123", format="set", merge=True)
+print(cfg.diff()) <-- This will perform a configuration DIFF
+
+# cfg.commit() <-- This will commit the configuration and add the comment
+# cfg.commit(comment="Testing from pyez") <-- This will commit but add a comment as well
+
+cfg.load(path="test_config.conf", format="text", merge=True)
+cfg.unlock() <-- This will unlock the configuration so other people can enter config mode
+
+!Juniper PyEZ with config file
+
+from jnpr.junos import Device
+from jnpr.junos.utils.config import Config
+from getpass import getpass
+
+a_device = Device(host="srx2.lasthop.io", user="pyclass", password=getpass())
+a_device.open()
+a_device.timeout = 60
+
+cfg = Config(a_device)
+cfg.lock()
+
+cfg.load(path="test_config.conf", format="text", merge=True) <-- here we load the config from a config file. Text instead of set means that the syntax will be curly braze notation instead of set commands
+# cfg.load(path="test_replace.conf", format="text", merge=False) <-- If you use the merge=False you need to specify replace in the config as well. With replace it removes that portion of the config that you are trying to push and implement whatever you are trying to push.
+# cfg.commit()
+# cfg.commit(comment="Testing from pyez")
+# cfg.unlock()
+
+!PyEZ configuration and XML
+
+from jnpr.junos import Device
+from jnpr.junos.utils.config import Config
+from getpass import getpass
+
+a_device = Device(host="srx2.lasthop.io", user="pyclass", password=getpass())
+a_device.open()
+a_device.timeout = 60
+
+cfg = Config(a_device)
+cfg.lock()
+
+cfg.load(path="test_config.xml", format="xml", merge=True) <-- here we specify the XML configuration
+# overwrite=True - full configuration replace so be careful
+# cfg.commit(confirm=1)
+# cfg.commit()
+# cfg.unlock()
+
+ ----------- XML for configuration -----------
+
+<configuration>
+        <routing-options>
+            <static>
+                <route>
+                    <name>1.1.4.0/24</name>
+                    <next-hop>10.220.88.1</next-hop>
+                </route>
+            </static>
+        </routing-options>
+</configuration>
+
+!You can check the config difference using
+
+print(cfg.diff())
+
+!You can also do a commit confirmed
+
+cfg.commit(confirm=1)
+
+!If you specify overwrite then it will delete the entire configuration and load your config as the new active configuration
+
+cfg.load(path="test_config.xml", format="xml", overwrite=True)
+
+!Juniper PYEz and RPC requests to retrieve information
+
+!What you would want to do to get the configuration syntax to send is log into the router
+and perform a "show <command> | display xml rpc" there you can get the output of the syntax to send to the router.
+When the syntax comes back you can get the RPC syntax it will be between the
+<rpc>
+  HERE YOU WILL FIND THE COMMAND TO USE just strip the <> at the end ALSO CHANGE THE - to a _
+</rpc>
+
+#!/usr/bin/env python
+from __future__ import print_function, unicode_literals
+
+from jnpr.junos import Device
+from lxml import etree
+from getpass import getpass
+
+juniper_srx = {"host": "srx2.lasthop.io", "user": "pyclass", "password": getpass()}
+
+a_device = Device(**juniper_srx) <-- here we create the juniper device object
+a_device.open() <-- here we establish the Netconf connection
+
+# show version | display xml rpc
+# <get-software-information>
+# xml_out = a_device.rpc.get_software_information()
+# print(etree.tostring(xml_out, encoding="unicode"))
+
+# get_lldp_neighbors_information()
+xml_out = a_device.rpc.get_lldp_neighbors_information() <-- Makes an RPC request to the device using Netconf. It takes the get information from the RPC output from the show command in this example get_lldp_neighbors_information. We then add a method call at the end ()
+print(etree.tostring(xml_out, encoding="unicode")) <-- to print this we use etree from the XML library we convert it to a string and pass it the variable name from our API call object. Encoding = unicode does the same thing as the decode that we have done in previouse examples

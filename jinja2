@@ -1,0 +1,401 @@
+With jinja2 you to take variables from some YAML file or files or a database and you run those
+through a template. You then create generated files from this information. 
+
+ ----- Constructs -----
+
+- Flow Control
+
+{{ var1 }} <- variable
+
+{%- set var1 = 'Cisco' %}
+
+{{ var1 | capitalize }}
+
+{{ var1 | capitalize | upper | lower }} <- you can chain string methods to the variables
+
+{{ var1 | capitalize | center(80) }}
+
+{{ var1 | default('some other value') }}
+
+
+Conditionals:
+
+{% if var == 'value' %}
+string of output text
+{% elif var == 'other value' %}
+next string of output text
+{% else %}
+the else clause
+{% endif %}
+
+For Loops:
+
+{% for item in some_list %}
+string of output {{ item }}
+{% endfor %}
+
+!Example
+
+{% for item in range(1, 25) %}
+interface GigabithEthernet0/1{{ port_num }}
+{% endfor %}
+
+!Example Nested for loop
+
+{% for slot in range(1, 4) %}
+  {% for item in range(1, 25) %}
+interface GigabithEthernet0/1{{ port_num }}
+  {% endfor %}
+{% endfor %}
+
+!Example for loop with conditional
+
+{% for item in range(1, 25) %}
+  {% if port_number == 10  %}
+interface GigabithEthernet0/1{{ port_num }}
+  {% endif %}
+{% endfor %}
+
+!You can make a Jinja2 comment with brackets ##
+
+{# This is a comment #}
+
+ - Data Structures
+
+!Lists
+
+{{ some_list[0] }} <- List
+Loop over it using a for loop
+
+First element:
+{{ intf_list[0] }}
+
+Last element:
+{{ intf_list[-1] }}
+
+Length of list:
+{{ intf_list | length }}
+
+Entire list:
+{{ intf_list }}
+
+{%- set my_list = ['cisco', 'juniper', 'arista'] %}
+
+!Dictionaries
+
+{{ a_dict['key'] }} <- Dictionary
+      or
+{{ a_dict.key }}
+
+Loop over a dictionary using the following
+
+{% for key in my_dict %}
+{{ key }}
+{% endfor %}
+{% for k, v in my_dict.items() %}
+Some text {{ k }} and {{ v }}
+{% endfor %}
+
+!Examples
+
+arp_entry = {
+    'interface': 'mgmt0',
+    'ip': '10.0.0.1',
+    'mac': '2c:c2:60:36:32:21',
+    'age': 140.0
+}
+
+{{ arp_entry['interface'] }}
+
+MAC --> IP
+
+{{ arp_entry['mac'] }} --> {{ arp_entry['ip'] }}
+
+!For loop in dict
+{%- fork in arp_entry %}
+    {{ k }}
+{%- endfor %}}
+
+!For loop in dict (using items)
+{%- for k, v in arp_entry.items() %}
+    {{ k }} --> {{ v }}
+{%- endfor %}
+
+ -----
+
+!A simple example where we render a BGP config
+
+from jinja2 import Template
+
+bgp_config = """
+router bgp {{ bgp_as }}
+ bgp router-id {{ rtr_id }}
+ bgp log-neighbor-changes
+ neighbor {{ neigh_ip }} remote-as 44
+"""
+
+my_template = Template(bgp_config)
+output = my_template.render(bgp_as=22, router_id='1.1.1.1', neigh_ip='10.10.10.1')
+print(output)
+
+ ------
+
+As configs become large it can become cumbersome to pass in variables to the function. You can
+alternatively pass them to the function via a dictionary
+
+bgp_config = """
+router bgp {{ bgp_as }}
+ bgp router-id {{ rtr_id }}
+ bgp log-neighbor-changes
+ neighbor {{ neigh_ip }} remote-as 44
+"""
+
+my_vars = {
+    'bgp_as': 22,
+    'router_id': '1.1.1.1',
+    'neigh_ip': '10.20.30.1',
+}
+
+my_template = Template(bgp_config)
+output = my_template.render(**my_vars)
+print(output)
+
+
+
+ ------
+
+!To load a file with the j2 template for rendering in Python do the following
+
+from jinja2 import Template
+
+filename = 'bgp_config.j2' 
+with open(filename) as f:
+    my_template = f.read() <-- open the j2 template and store it as the my_template object
+
+template_vars = {
+    'bgp_as': 22,
+    'router_id': '1.1.1.1',
+    'peer1': '10.10.20.1',
+}
+
+j2_template = Template(my_template)
+output = j2_template.render(**template_vars)
+print(output)
+
+
+ ------
+
+
+!You can also do math equations within the string. These will be rendered when you pass the string to the render function
+
+example_expr = '''
+Some text with expressions {{ 13 + 3}}
+other expressions {{ 13 * 7}}
+'''
+
+ ------
+
+!Jinja2 Environment
+
+from __future__ import unicode_literals, print_function
+from jinja2 import FileSystemLoader, StrictUndefined
+from jinja2.environment import Environment
+
+env = Environment()
+env.loader = FileSystemLoader('.') <-- look in current directory to find template files
+env = Environment(undefined=StrictUndefined) <-- This will cause j2 to fail if a variable is undefined. By default it will not fail
+#env.loader = FileSystemLoader([".", "./templates/"]) <-- You can also define this to look in the templates directory for files
+
+my_vars = {"bgp_as": 22, "router_id": "1.1.1.1", "peer1": "10.20.30.1"}
+
+template_file = "bgp_config.j2"
+template = env.get_template(template_file)
+output = template.render(**my_vars)
+print(output)
+
+ --------
+
+!Jinja2 Conditionals
+
+from __future__ import unicode_literals, print_function
+from jinja2 import FileSystemLoader, StrictUndefined
+from jinja2.environment import Environment
+
+env = Environment(undefined=StrictUndefined)
+env.loader = FileSystemLoader(".")
+
+my_vars = {"primary_ip": True} <-- If this is not true then the IP address from the .j2 file will not be loaded
+
+template_file = "intf_config1.j2"
+template = env.get_template(template_file)
+output = template.render(**my_vars)
+print(output)
+
+ - intf_config1.j2
+
+interface GigabitEthernet0/0/0
+ {% if primary_ip %} <-- This is true since my_vars above specifies this in the .py file
+ ip address 10.220.88.22 255.255.255.0
+ {% endif %}
+negotiation auto
+
+ -----------
+
+!Stripping whitespace
+
+interface GigabitEthernet0/0/0
+ {% if primary_ip %} <---By defaqult this causes a whitespace
+ ip address 10.220.88.22 255.255.255.0
+ {% endif %} <---By defaqult this causes a whitespace
+negotiation auto
+
+interface GigabitEthernet0/0/0
+ {%- if primary_ip %} <-- if you put a - either after the first % or before the last % between the brackets it will strip the whitespace
+ ip address 10.220.88.22 255.255.255.0
+ {%- endif %}
+negotiation auto
+
+ ------------
+
+!More conditionals
+
+from __future__ import unicode_literals, print_function
+from jinja2 import FileSystemLoader, StrictUndefined
+from jinja2.environment import Environment
+
+env = Environment(undefined=StrictUndefined)
+env.loader = FileSystemLoader(".")
+
+my_vars = {"mode": "access"} <-- since this is set to access the first portion of the config will be run
+
+template_file = "intf_config2.j2"
+template = env.get_template(template_file)
+output = template.render(**my_vars)
+print(output)
+
+ - intf_config2.j2
+
+interface GigabitEthernet0/1/0
+ {%- if mode == "access" %} <-- The next two lines will be done since this is set to access
+ switchport access vlan 400
+ switchport mode access
+ {%- elif mode == "trunk" %} <-- This is not run since the program has my_vars set to access
+ switchport trunk native vlan 1
+ switchport trunk allowed vlan 1,300,400
+ switchport mode trunk
+{%- endif %}
+
+ -------------
+
+!For loops
+
+{%- for port_number in range(1, 24) %}
+interface GigabitEthernet0/1/{{ port_number }} <-- using range in this manner will create 24 configs starting with interface 1 and ending with /24
+ switchport access vlan 400
+ switchport mode access
+{%- endfor %}
+
+!You can also have the interface config inbeded in the Python program as well
+
+
+from __future__ import unicode_literals, print_function
+from jinja2 import FileSystemLoader, StrictUndefined
+from jinja2.environment import Environment
+
+env = Environment(undefined=StrictUndefined)
+env.loader = FileSystemLoader(".")
+
+intf_list = []
+for intf_number in range(24):
+    intf_name = f'GigabitEthernet0/1/{intf_number}' <-- in Python 3.6 and above the f will substitute the intf_number with the number in the line from the range command
+    intf_list.append(intf_name)
+
+intf_vars = {
+    'intf_list': intf_list, <-- list is added to interface variables dictionary
+}
+
+template_file = "intf_config3.j2"
+template = env.get_template(template_file)
+output = template.render(**intf_vars)
+print(output)
+
+ - intf_config3.j2
+
+{%- for intf in intf_list %} <-- we iterate through the above Python list
+interface {{ intf }}
+ switchport access vlan 400
+ switchport mode access
+{%- endfor %}
+
+!You could also define this like so
+
+base_intf = 'GigabitEthernet0/1/'
+intf_list = []
+
+for intf_number in range(24):
+    intf_name = f'{base_intf}{intf_number}'
+
+ ---- Jinja2 Includes
+
+!This can be used to if you have AAA or SNMP or other variables you can pull these in for other configuration templates. Good for global parameters that will be used by multiple templates
+
+{% include 'other_template.j2' %} <-- this will render other_template.j2 and include this in your program
+
+!Example
+
+ - j2_loader2.py
+
+from __future__ import unicode_literals, print_function
+from jinja2 import FileSystemLoader, StrictUndefined
+from jinja2.environment import Environment
+
+env = Environment(undefined=StrictUndefined)
+env.loader = FileSystemLoader(".")
+
+template_vars = {"template_var": "second_template.j2"}
+
+template_file = "template2.j2"
+template = env.get_template(template_file)
+output = template.render(**template_vars)
+print(output)
+
+ - template1.j2
+
+header info
+
+{% include 'other_template.j2' %}
+
+footer info
+
+ - other_template.j2
+
+INFO FROM OTHER TEMPLATE
+
+!Another example
+
+ - j2_loader2.py
+
+template_vars = {"template_var": "second_template.j2"}
+template_file = "template2.j2"
+template = env.get_template(template_file)
+output = template.render(**template_vars)
+print(output)
+
+ - template2.j2
+
+header info
+
+{#- Have other template be dynamically #}
+{% include template_var %}
+
+footer info
+
+ - second_template.j2
+
+
+This was pulled in dynamically based on the variable name!
+
+
+
+
+

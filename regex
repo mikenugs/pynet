@@ -1,0 +1,32 @@
+!RegEx is needed because you need to search and parse through text patterns. 
+
+import re <-- to import regular expression library
+
+line = "10.1.1.1 255.255.255.0"
+re.search(r".", line) <-- This will search the variable line for the pattern durrounded in parenthesis
+pattern = re.search(r".", line).group(0) <-- group 0 will show you what the pattern matches
+!If you use group 0 it will do your entire match assuming you have one. If you use group 1 or 2 then you would have multiple parenthesis () in the Regex and this will match the specified group.
+
+pattern = re.search(r".", line).groups() <-- this will show you all of the groups
+
+line = 'Version 15.4(2)T1'
+os_version = re.search(r"^Cisco (.*), Version (\S+),.*S, line.group(2)
+!in the above example line will equal just 15.4(2)T1
+
+!You can also create dictionary key value pairs within your RegEx by adding a ? and then wrapping the key name in brackets <>
+
+line = 'Version 15.4(2)T1'
+os = os_version = re.search(r"^Cisco (.*), Version (?<serial_num>\S+),.*S, line)
+os.groupdict()
+{'serial_num'}: '15.4(2)T1'}
+
+os = os_version = re.search(r"^Processor board ID (.*)$", line, flags=re.M).group(1) <-- With this example we try and anchor just the serial number which begins with Processor board ID in the output. Since we anchored this with a ^ and this line is not in 
+the beginning it originally failed. To resolve this we set the flags=re.M for multiline and that will search through each line in the text and match. 
+
+re.search(r"^Cisco.*", line, flags=re.DOTALL).group(0) <-- you would think that the .* would go to the end of the entire output of the show version but it does not traverse new lines. So to force it to traverse \n you can add the re.DOTALL flag. 
+
+!The re.I flag ignores capatilization
+
+!re.split will do a split on a sting to create a list
+!re.sub will substitue something in your string with whatever you specify
+!re.findall will find a particular pattern within the string and extract all of these patterns within the string
